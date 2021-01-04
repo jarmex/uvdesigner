@@ -1,0 +1,67 @@
+{
+    "name": "@uvdesigner/backend",
+    "version": "1.0.0",
+    "description": "A backend for receiving USSD pull request and also handling the USSD Visual designer inputs",
+    "main": "index.js",
+    "scripts": {
+        "build": "tsc --build",
+        "start": "pnpm build && node dist/server.js",
+        "dev": "node --inspect=5858 -r ts-node/register ./src/server.ts",
+        "dev:watch": "nodemon",
+        "serve": "node server.js"
+    },
+    "keywords": [
+        "ussd",
+        "visual designer"
+    ],
+    "author": "James Amo<jarmex@gmail.com>",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/bcrypt": "^3.0.0",
+        "@types/cookie-parser": "^1.4.2",
+        "@types/cors": "^2.8.9",
+        "@types/express": "^4.17.9",
+        "@types/http-errors": "^1.8.0",
+        "@types/jsonpath": "^0.2.0",
+        "@types/jsonwebtoken": "^8.5.0",
+        "@types/redis": "^2.8.28",
+        "@types/uuid": "^8.3.0",
+        "eslint": "^7.16.0",
+        "eslint-plugin-import": "^2.22.1",
+        "nodemon": "^2.0.6",
+        "ts-node": "^9.1.0",
+        "typescript": "^4.1.2"
+    },
+    "dependencies": {
+        "axios": "^0.21.1",
+        "bcrypt": "^5.0.0",
+        "body-parser": "^1.19.0",
+        "class-transformer": "^0.3.1",
+        "class-validator": "^0.12.2",
+        "cookie-parser": "^1.4.5",
+        "cors": "^2.8.5",
+        "dotenv": "^8.2.0",
+        "express": "^4.17.1",
+        "http-errors": "^1.8.0",
+        "jsonpath-plus": "^4.0.0",
+        "jsonwebtoken": "^8.5.1",
+        "log4js": "^6.3.0",
+        "moment": "^2.29.1",
+        "redis": "^3.0.2",
+        "reflect-metadata": "^0.1.13",
+        "uuid": "^8.3.2"
+    },
+    "nodemonConfig": {
+        "ignore": [
+            "**/*.test.ts",
+            "**/*.spec.ts",
+            ".git",
+            "node_modules"
+        ],
+        "watch": [
+            "src"
+        ],
+        "exec": "pnpm dev",
+        "ext": "ts"
+    }
+}

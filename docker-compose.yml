@@ -1,0 +1,52 @@
+version: '3'
+
+services: 
+  redis:
+    image: redis:alpine
+    networks:
+      - sawtel
+
+  ussdserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        PACKAGE_NAME: backend
+      target: backend
+    image: jarmex/ussdserver:2.0.0
+    container_name: ussdserver
+    hostname: ussdserver
+    domainname: ussdserver.local
+    volumes:
+      - db:/app/accounts
+      - workspaces:/app/workspaces
+    networks:
+      sawtel:
+        aliases:
+          - ussdserver
+    depends_on:
+      - redis
+    env_file:
+      - .env.ussdserver
+  
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        PACKAGE_NAME: frontend
+    image: jarmex/uvdesigner:latest
+    container_name: vdesigner
+    networks:
+      - sawtel
+    ports:
+      - 3000:80
+    depends_on:
+      - ussdserver
+        
+volumes:
+  db:
+  workspaces:
+
+networks:
+  sawtel:
