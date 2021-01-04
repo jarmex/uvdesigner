@@ -1,10 +1,13 @@
 dist
+docker-compose-prod.yml
+docker-compose-prod.ymal
 build
 packages/backend/node_modules
 packages/vdesigner/node_modules
 packages/backend/workspaces
 packages/backend/accounts
 packages/backend/db
+.env.mtn
 
 node_modules
 # Logs
