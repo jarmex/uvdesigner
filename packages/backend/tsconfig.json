@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+        "lib": ["ES2019"],
+        "moduleResolution": "Node",
+        "module": "CommonJS",
+        "sourceMap": true,
+        "alwaysStrict": true,
+        "forceConsistentCasingInFileNames": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "noImplicitReturns": true,
+        "resolveJsonModule": true,
+        "strictNullChecks": true,
+        "experimentalDecorators": true,
+        "target": "ES2019",
+        "outDir": "./dist",
+        "baseUrl": "./src"
+    },
+    "exclude": ["node_modules", "dist"]
+}
