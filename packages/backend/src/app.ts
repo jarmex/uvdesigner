@@ -1,5 +1,5 @@
 import * as express from "express";
-import { IController } from "./types";
+import { IController } from "@uvdesigner/common";
 import { json } from "body-parser";
 import errorMiddleware from "./middleware/error.middleware";
 import * as cookieParser from "cookie-parser";

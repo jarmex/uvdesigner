@@ -2,7 +2,7 @@ import React from "react";
 import "./App.css";
 import { ThemeProvider } from "styled-components";
 import { theme } from "./Theme";
-import { VariableContext, variablesValues } from "./Context";
+import { VariableProvider } from "./Context";
 import NodeDataProvider from "./Data/NodeDataProvider";
 import { Switch, Route, BrowserRouter } from "react-router-dom";
 import ShortCodePage from "./Screens/ShortCodes/ShortCodePage";
@@ -15,7 +15,7 @@ function App() {
   return (
     <NodeDataProvider>
       <ThemeProvider theme={theme}>
-        <VariableContext.Provider value={{ variable: variablesValues }}>
+        <VariableProvider>
           <BrowserRouter>
             <Switch>
               <Route path="/changepwd/:id">
@@ -32,7 +32,7 @@ function App() {
               </Route>
             </Switch>
           </BrowserRouter>
-        </VariableContext.Provider>
+        </VariableProvider>
       </ThemeProvider>
     </NodeDataProvider>
   );

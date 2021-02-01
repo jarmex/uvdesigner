@@ -1,8 +1,8 @@
 export interface IGenericObj {
-  [key: string]: any;
+    [key: string]: any;
 }
 
 export interface RVDResponse {
-  message: string | null;
-  continue: boolean;
+    message: string;
+    continue: boolean;
 }

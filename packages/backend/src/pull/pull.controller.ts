@@ -1,10 +1,10 @@
-import USSDException from "../exception/USSDException";
 import { Router, Request, Response, NextFunction } from "express";
-import { IController } from "../types";
+import { IConnectorData, IController, IResponseData, USSDException } from "@uvdesigner/common";
 import { Constants, getRequestType, ISubMessage, RequestType, setCustomHeader } from "../utils/constants";
 import { getLogger, Logger } from "../utils";
 import { AsyncRedis } from "../shared/AsyncRedis";
 import Environment from "../shared/environment";
+import { RVDController, SessionState } from "shared/RVDController";
 
 export class UssdPullController implements IController {
     public path: string = "/ussd";
@@ -25,15 +25,15 @@ export class UssdPullController implements IController {
         this.router.post(this.path, this.pullrequest);
     }
 
-    pullrequest = (req: Request, resp: Response, next: NextFunction) => {
+    pullrequest = async (req: Request, resp: Response, next: NextFunction) => {
         console.log(req.body);
-        const { connector, ...rest } = req.body;
-        if (connector) {
+        const { isAsync, ...connectorData } = req.body as IConnectorData;
+        if (isAsync) {
             let stringifyData = "";
             // extract base information based on the connector
+            const { requestType, connector, ...otherparams } = connectorData;
             if (connector.toLowerCase() === "mtn") {
                 // extract the MTN information here and added it to the body
-                const { requestType, ...otherparams } = rest;
                 const _requestType = getRequestType("MTN", requestType);
                 if (_requestType === RequestType.MTN_notifyUssdReception) {
                     // extract the data for the notifyUssdReception
@@ -51,6 +51,7 @@ export class UssdPullController implements IController {
                     });
                 } else {
                     // unknown situation. Figure out what to do here
+                    next(new USSDException("Unsupported request received. Try again"));
                 }
             }
             if (stringifyData !== "") {
@@ -63,7 +64,23 @@ export class UssdPullController implements IController {
             resp.set(setCustomHeader);
             resp.status(204).end();
         } else {
-            next(new USSDException("No connector found"));
+            // check if the request to abort
+            if (connectorData.isabort) {
+                resp.status(201).send({ abort: true });
+            } else {
+                // process request using synchronous approach
+                const rvd = new RVDController();
+                const rvdResponse = await rvd.entryPoint({
+                    sessionState: SessionState.Continue,
+                    ...connectorData,
+                });
+                const response: IResponseData = {
+                    isContinue: rvdResponse.continue,
+                    message: rvdResponse.message,
+                    ...connectorData,
+                };
+                resp.status(200).send(response);
+            }
         }
     };
 }

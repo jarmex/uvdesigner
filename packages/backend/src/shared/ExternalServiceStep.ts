@@ -3,6 +3,7 @@ import { JSONPath } from "jsonpath-plus";
 import { ReplaceVariables } from "./ReplaceVariables";
 import { getLogger } from "../utils/logger";
 import ensureArray from "./ensureArray";
+import { xml2json } from "xml-js";
 
 const logger = getLogger("ExternalService");
 
@@ -114,6 +115,23 @@ export default class ExternalServiceSteps {
                     } else if (conType.match(/application\/json.*/gi)) {
                         let result = JSONPath({ path: querypath, json: axiosdata })[0] || "";
 
+                        logger.debug(` Assign => ${querypath} = ${result}`);
+                        if (assign.scope === "module") {
+                            temp[`$${assign.destVariable}`] = result;
+                        } else {
+                            data[`$${assign.destVariable}`] = result;
+                        }
+                    } else if (conType.match(/(application|text)\/xml.*/gi)) {
+                        let xmlParsedJson = xml2json(axiosdata, {
+                            compact: true,
+                            ignoreDeclaration: true,
+                            elementNameFn: function (name: string) {
+                                return name.slice(name.search(":") + 1);
+                            },
+                            ignoreComment: true,
+                            ignoreAttributes: true,
+                        });
+                        let result = JSONPath({ path: `${querypath}._text`, json: xmlParsedJson })[0] || "";
                         logger.debug(` Assign => ${querypath} = ${result}`);
                         if (assign.scope === "module") {
                             temp[`$${assign.destVariable}`] = result;

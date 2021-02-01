@@ -1,7 +1,6 @@
 import { Router, Response, NextFunction } from "express";
-import { IController } from "../types";
+import { IController, UVDException } from "@uvdesigner/common";
 import { ShortCodeDb } from "../db/shortcode.db";
-import { UVDException } from "../exception/UVDException";
 import { validationMiddleware } from "../middleware/validation.middleware";
 import { ShortCodeDto } from "./uvd.dto";
 import authMiddleware from "../middleware/auth.middleware";

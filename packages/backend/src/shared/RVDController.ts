@@ -115,8 +115,10 @@ export class RVDController {
             const state: IGenericObj = {
                 $core_From: msisdn,
                 $cell_id: request.cellid || "",
+                $core_CellId: request.cellid || "",
                 $session_id: sessionId,
                 $imsi: request.imsi || "",
+                $core_Imsi: request.imsi || "",
                 $core_Body: input,
                 $cellid: request.cellid || "",
             };
@@ -124,12 +126,13 @@ export class RVDController {
             // check if there is lac, mcc, mnc etc
             if (request.lac && request.mcc) {
                 state.$cellid = `${request.mcc}${request.mnc}${request.lac}${request.cellid}`;
+                state.$core_CellId = `${request.mcc}${request.mnc}${request.lac}${request.cellid}`;
             }
             // the session does not exist so we need to create it for the first time.
             if (!subSession) {
                 // the first time request, the input is the same as the shortcode
                 state.$shortcode = _shortcode;
-                // if the sid is not found return without processing the request since there is no configuration matching
+                state.$core_To = _shortcode;
             } else {
                 state.$shortcode = subSession.$shortcode;
             }
@@ -141,6 +144,8 @@ export class RVDController {
                     continue: false,
                     message: this.defaultErrorMsg,
                 };
+            } else {
+                state.$core_AccountSid = sid;
             }
             const rvdController = new RVDNode({
                 session: subSession,

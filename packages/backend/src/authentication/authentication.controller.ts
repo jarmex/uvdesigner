@@ -1,14 +1,12 @@
 import { AccountDatabase, AccountData } from "../db";
-import { WrongCredentialException } from "../exception/WrongCredentialException";
 import { Router, Request, Response, NextFunction } from "express";
 import { validationMiddleware } from "../middleware/validation.middleware";
-import { IController } from "../types";
+import { IController, WrongCredentialException } from "@uvdesigner/common";
 import { CreateAccountDto, DataStoredInToken, LoginDto, TokenData } from "./authentication.dto";
 import * as bcrypt from "bcrypt";
-import { UserAlreadyExistException } from "../exception/UserAlreadyExistException";
+import { HttpException, UserAlreadyExistException } from "@uvdesigner/common";
 import * as jwt from "jsonwebtoken";
 import { getLogger, Logger } from "../utils";
-import HttpException from "../exception/HttpException";
 import Environment from "../shared/environment";
 import { v4 } from "uuid";
 
