@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc --build",
     "start": "pnpm build && node dist/server.js",
-    "dev": "node -r ts-node/register ./src/server.ts",
+    "dev": "node -r ts-node/register -r dotenv/config ./src/server.ts",
     "dev:watch": "nodemon",
     "serve": "node server.js"
   },

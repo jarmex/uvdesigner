@@ -1,5 +1,5 @@
 import axios from "axios";
-import { IConnectorData, IResponseData } from "./types";
+import { Connector, IConnectorData, IGenericObj, IResponseData } from "./types";
 
 export class UssdService {
   public async request(requestData: IConnectorData): Promise<IResponseData> {
@@ -17,6 +17,25 @@ export class UssdService {
         message,
         ...rest,
       };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * use this method to get the configuration from USSD Server
+   *
+   * @param {string} url
+   * @returns {Promise<Object>}
+   */
+  public async getSetting(
+    url: string,
+    connector: Connector
+  ): Promise<IGenericObj> {
+    try {
+      const settingurl = `${url}/settings/${connector}`;
+      const { data } = await axios.post(settingurl, { connector });
+      return data;
     } catch (error) {
       throw error;
     }

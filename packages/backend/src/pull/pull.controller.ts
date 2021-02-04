@@ -4,7 +4,7 @@ import { Constants, getRequestType, ISubMessage, RequestType, setCustomHeader } 
 import { getLogger, Logger } from "../utils";
 import { AsyncRedis } from "../shared/AsyncRedis";
 import Environment from "../shared/environment";
-import { RVDController, SessionState } from "shared/RVDController";
+import { RVDController, SessionState } from "../shared/RVDController";
 
 export class UssdPullController implements IController {
     public path: string = "/ussd";

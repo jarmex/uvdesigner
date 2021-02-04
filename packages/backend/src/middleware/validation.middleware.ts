@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { validate, ValidationError } from "class-validator";
 import { plainToClass } from "class-transformer";
-import HttpException from "../exception/HttpException";
+import { HttpException } from "@uvdesigner/common";
 
 export function validationMiddleware<T>(type: any, skipMissingProperties = false): RequestHandler {
     return (req, _, next) => {

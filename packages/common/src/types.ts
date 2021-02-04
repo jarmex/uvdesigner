@@ -11,7 +11,7 @@ export interface IGenericObj {
 
 export interface IConnectorData {
   ussdServerUrl: string;
-  connector: string;
+  connector: Connector;
   isAsync: boolean;
   responseUrl: string;
   msisdn: string;
@@ -30,3 +30,5 @@ export interface IResponseData {
   message: string;
   [key: string]: any;
 }
+
+export type Connector = "MTN" | "AirtelTigo" | "Glo" | "TruRoute" | "Vodafone";

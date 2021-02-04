@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import HttpException from "../exception/HttpException";
+import { HttpException } from "@uvdesigner/common";
 
 function errorMiddleware(error: HttpException, req: Request, res: Response, next: NextFunction) {
     const status = error.status || 500;

@@ -47,13 +47,19 @@ class CommonApp {
    * Application Listing on the configured port
    *
    * @param {string} message - the message to be printed in the console.
+   * @param {Function} callback - a callback function
    */
-  public listen(message?: string) {
+
+  public listen(message?: string, callback?: () => void) {
     this.app.listen(this.port, () => {
       if (message) {
         console.log(message);
       } else {
         console.log(`Application running on port ${this.port}`);
+      }
+      // call back function
+      if (callback) {
+        callback();
       }
     });
   }

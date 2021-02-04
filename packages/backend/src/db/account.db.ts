@@ -4,15 +4,27 @@ import { AccountData } from "./account.dto";
 import { v4 } from "uuid";
 import { dirname, join } from "path";
 import { getLogger, Logger } from "../utils";
+import { AirtelTigoSettings, ConnectorSettings, MTNSettings } from "./settings.dto";
+import { Connector } from "@uvdesigner/common";
+
+type SaveType = "Setting" | "Account";
+
+type ConSettings = MTNSettings | AirtelTigoSettings | null;
 
 export class AccountDatabase {
     private filepath: string;
     private db: Array<AccountData> = new Array<AccountData>();
     private log: Logger;
+    private settingFile: string;
+    private connectorSetting: ConnectorSettings;
+    private saveType: SaveType;
+
     constructor() {
         this.log = getLogger("account");
         this.filepath = this.getFilePath("accounts.json");
+        this.settingFile = this.getFilePath("settings.json");
         this.readFileContent();
+        this.readSettingsFile();
     }
 
     private getFilePath(filename: string): string {
@@ -27,6 +39,18 @@ export class AccountDatabase {
         const fpath = join(process.cwd(), "accounts", filename);
         return fpath;
     }
+    private readSettingsFile() {
+        try {
+            if (!existsSync(this.settingFile)) {
+                this.connectorSetting = new ConnectorSettings();
+                return;
+            }
+            const data = readFileSync(this.settingFile);
+            this.connectorSetting = plainToClass(ConnectorSettings, JSON.parse(data.toString("utf8")));
+        } catch (error) {
+            this.log.error(error.message);
+        }
+    }
     private readFileContent() {
         try {
             if (!existsSync(this.filepath)) {
@@ -38,17 +62,21 @@ export class AccountDatabase {
                 this.db = plainToClass(AccountData, allAccount);
             }
         } catch (error) {
-            console.log(error.message);
+            this.log.error(error.message);
         }
     }
 
-    private save() {
+    private save(sv: SaveType = "Account") {
         try {
             const dir = dirname(this.filepath);
             if (!existsSync(dir)) {
                 mkdirSync(dir, { recursive: true });
             }
-            writeFileSync(this.filepath, JSON.stringify(this.db));
+            if (sv === "Account") {
+                writeFileSync(this.filepath, JSON.stringify(this.db));
+            } else {
+                writeFileSync(this.settingFile, JSON.stringify(this.connectorSetting));
+            }
         } catch (error) {
             console.log(error.message);
             throw error;
@@ -145,5 +173,37 @@ export class AccountDatabase {
                 resolve(false);
             }
         });
+    }
+    public updateMtnSettings(mtn: MTNSettings): Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            try {
+                this.connectorSetting.mtn = mtn;
+                this.save("Setting");
+                resolve(true);
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+    public updateAirtelTigoSetting(airt: AirtelTigoSettings): Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            try {
+                this.connectorSetting.airteltigo = airt;
+                this.save("Setting");
+                resolve(true);
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+    public getSettings(connector: Connector): ConSettings {
+        switch (connector) {
+            case "MTN":
+                return this.connectorSetting.mtn;
+            case "AirtelTigo":
+                return this.connectorSetting.airteltigo;
+            default:
+                return null;
+        }
     }
 }

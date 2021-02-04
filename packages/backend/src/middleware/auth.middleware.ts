@@ -1,6 +1,5 @@
 import { AccountDatabase } from "../db/account.db";
-import AuthenticationTokenMissingException from "../exception/AuthenticationTokenMissingException";
-import WrongAuthenticationTokenException from "../exception/WrongAuthenticationTokenException";
+import { WrongAuthenticationTokenException, AuthenticationTokenMissingException } from "@uvdesigner/common";
 import { NextFunction, Response } from "express";
 import RequestWithAccount from "../interfaces/requestWithUser.interface";
 import * as jwt from "jsonwebtoken";

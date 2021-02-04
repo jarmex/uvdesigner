@@ -6,6 +6,8 @@ import {
   IController,
   IResponseData,
   UssdService,
+  HttpException,
+  getLogger,
 } from "@uvdesigner/common";
 import {
   DataSet,
@@ -16,14 +18,15 @@ import {
   USSDDynMenuRequest,
   USSDDynMenuResponse,
 } from "../types";
-import HttpException from "../Exceptions/HttpException";
 import AirtelTigoConfig from "../Config/AirtelTigoConfig";
 
 class AirtelTigoController implements IController {
   public router: Router = Router();
   private path: string = "/tigo";
-
-  constructor() {}
+  private logger = getLogger("airteltigo");
+  constructor() {
+    this.initRoutes();
+  }
   public initRoutes() {
     // all route to use the raw and not converted to json
     const rawBodyParser = raw({
@@ -69,6 +72,7 @@ class AirtelTigoController implements IController {
         );
         resp.send(ussdResponse);
       } catch (error) {
+        this.logger.error(error.message);
         // process response for error
         resp.send("Failed");
       }
@@ -116,42 +120,46 @@ class AirtelTigoController implements IController {
    * @returns {IAirtelTigoUSSDRequest | null}
    */
   private convertTo(xml: string): IAirtelTigoUSSDRequest | null {
-    if (!xml) return null;
-    const xmljs = xml2js(xml, {
-      compact: true,
-      ignoreDeclaration: true,
-      ignoreDoctype: true,
-    }) as any;
-    const dataSet: DataSet = {
-      param: new Array<Param>(),
-    };
-    const ussdDynMenuRequest: any = xmljs.USSDDynMenuRequest;
-    if (!ussdDynMenuRequest) return null;
-    if (
-      ussdDynMenuRequest.dataSet &&
-      ussdDynMenuRequest.dataSet.param &&
-      Array.isArray(ussdDynMenuRequest.dataSet.param)
-    ) {
-      ussdDynMenuRequest.dataSet.param.forEach((dset: any) => {
-        dataSet.param.push({
-          id: dset.id._text,
-          value: dset.value._test,
+    try {
+      if (!xml) return null;
+      const xmljs = xml2js(xml, {
+        compact: true,
+        ignoreDeclaration: true,
+        ignoreDoctype: true,
+      }) as any;
+      const dataSet: DataSet = {
+        param: new Array<Param>(),
+      };
+      const ussdDynMenuRequest: any = xmljs.USSDDynMenuRequest;
+      if (!ussdDynMenuRequest) return null;
+      if (
+        ussdDynMenuRequest.dataSet &&
+        ussdDynMenuRequest.dataSet.param &&
+        Array.isArray(ussdDynMenuRequest.dataSet.param)
+      ) {
+        ussdDynMenuRequest.dataSet.param.forEach((dset: any) => {
+          dataSet.param.push({
+            id: dset.id._text,
+            value: dset.value._test,
+          });
         });
-      });
+      }
+      const result: IAirtelTigoUSSDRequest = {
+        USSDDynMenuRequest: {
+          keyWord: ussdDynMenuRequest.keyWord._text,
+          sessionId: ussdDynMenuRequest.sessionId._text,
+          msisdn: ussdDynMenuRequest.msisdn._text,
+          requestId: ussdDynMenuRequest.requestId._text,
+          starCode: ussdDynMenuRequest.starCode._text,
+          timeStamp: ussdDynMenuRequest.timeStamp._text,
+          userData: ussdDynMenuRequest.userData._text,
+          dataSet,
+        },
+      };
+      return result;
+    } catch (error) {
+      return null;
     }
-    const result: IAirtelTigoUSSDRequest = {
-      USSDDynMenuRequest: {
-        keyWord: ussdDynMenuRequest.keyWord._text,
-        sessionId: ussdDynMenuRequest.sessionId._text,
-        msisdn: ussdDynMenuRequest.msisdn._text,
-        requestId: ussdDynMenuRequest.requestId._text,
-        starCode: ussdDynMenuRequest.starCode._text,
-        timeStamp: ussdDynMenuRequest.timeStamp._text,
-        userData: ussdDynMenuRequest.userData._text,
-        dataSet,
-      },
-    };
-    return result;
   }
 }
 
