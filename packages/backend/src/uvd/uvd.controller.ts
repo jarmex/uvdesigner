@@ -5,8 +5,6 @@ import { validationMiddleware } from "../middleware/validation.middleware";
 import { ShortCodeDto } from "./uvd.dto";
 import authMiddleware from "../middleware/auth.middleware";
 import RequestWithAccount from "../interfaces/requestWithUser.interface";
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from "fs";
-import { join } from "path";
 import { getLogger, Logger } from "../utils";
 
 export class UVDController implements IController {
@@ -17,6 +15,7 @@ export class UVDController implements IController {
     constructor() {
         this.log = getLogger("uvd");
         this.sDb = new ShortCodeDb();
+        this.sDb.readAllShortcodes();
         this.initRoutes();
     }
     public initRoutes() {
@@ -75,6 +74,7 @@ export class UVDController implements IController {
             const sData = await this.sDb.getShortCode(serviceId);
             if (sData) {
                 // save the data using the serviceId as the folder name
+                /*
                 const statefolder = join(process.cwd(), "workspaces", sData.serviceId);
                 if (!existsSync(statefolder)) {
                     mkdirSync(statefolder, { recursive: true });
@@ -82,6 +82,8 @@ export class UVDController implements IController {
                 const statefile = join(statefolder, "state");
                 writeFileSync(statefile, JSON.stringify(message), { flag: "w" });
 
+                */
+                await this.sDb.updateServiceId(serviceId, message);
                 resp.send({
                     status: 0,
                     message: "UVD Saved successfully",
@@ -97,25 +99,18 @@ export class UVDController implements IController {
     readUVD = async (req: RequestWithAccount, resp: Response, next: NextFunction) => {
         try {
             const serviceId = req.params.id;
-            const sdata = await this.sDb.getShortCode(serviceId);
-            if (sdata) {
-                // read the data
-                const statefolder = join(process.cwd(), "workspaces", sdata.serviceId, "state");
-                if (existsSync(statefolder)) {
-                    const data = readFileSync(statefolder).toString();
-                    resp.send({
-                        status: 0,
-                        message: JSON.parse(data),
-                    });
-                } else {
-                    // next(new UVDException("There is no data for the Service Id"));
-                    resp.send({
-                        status: 1,
-                        message: "No data found",
-                    });
-                }
+            const sdata = await this.sDb.getServiceIdData(serviceId);
+            if (!sdata) {
+                //next(new UVDException("Service Id does not exist"));
+                resp.send({
+                    status: 1,
+                    message: {},
+                });
             } else {
-                next(new UVDException("Service Id does not exist"));
+                resp.send({
+                    status: 0,
+                    message: sdata,
+                });
             }
         } catch (error) {
             next(new UVDException(error.message));

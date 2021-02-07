@@ -1,40 +1,30 @@
 import { ShortCodeData } from "./shortcode.dto";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { plainToClass } from "class-transformer";
-import { join, dirname } from "path";
 import { decodeDesECB, encodeDesECB } from "../utils/encrypt.text";
 import { getLogger, Logger } from "../utils";
+import { AsyncRedis } from "../shared/AsyncRedis";
+import Environment from "../shared/environment";
 
 export class ShortCodeDb {
-    private filepath: string;
     private db: Array<ShortCodeData> = new Array<ShortCodeData>();
     private log: Logger;
+    private redis: AsyncRedis;
+
     constructor() {
         this.log = getLogger("shortcode");
-        const filename: string = "shortcodes.json";
-        this.filepath = this.getFilePath(filename);
-
-        this.readFileContent();
+        this.redis = new AsyncRedis({ prefix: "uvd-sh:", ...Environment.redis });
     }
 
-    private getFilePath(filename: string): string {
-        const fpath = join(process.cwd(), "accounts", filename);
-        return fpath;
-    }
-
-    private readFileContent() {
+    public async readAllShortcodes() {
         try {
-            if (!existsSync(this.filepath)) {
-                this.log.warn("No shortcode defined");
-                return;
-            }
-            const data = readFileSync(this.filepath);
+            const data = await this.redis.getAsync("shortcodes");
+            if (!data) return;
             const allAccount = JSON.parse(data.toString("utf8"));
             if (Array.isArray(allAccount)) {
                 this.db = plainToClass(ShortCodeData, allAccount);
             }
         } catch (error) {
-            console.log(error.message);
+            this.log.error(error.message);
         }
     }
 
@@ -50,22 +40,49 @@ export class ShortCodeDb {
         });
     }
 
-    private save() {
+    private async save() {
         try {
-            const dir = dirname(this.filepath);
-            if (!existsSync(dir)) {
-                mkdirSync(dir, { recursive: true });
-            }
-            writeFileSync(this.filepath, JSON.stringify(this.db));
+            await this.redis.setAsync("shortcodes", JSON.stringify(this.db));
         } catch (error) {
-            console.log(error.message);
+            this.log.error(error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Update the UVD designer data using the serviceId as key
+     *
+     * @param {string} serviceId
+     * @param {any} data
+     * @returns {Promise<void>}
+     */
+    public async updateServiceId(serviceId: string, data: any): Promise<void> {
+        if (!serviceId) throw new Error("Service ID is not valid");
+        await this.redis.setAsync(serviceId, JSON.stringify(data));
+    }
+
+    /**
+     * Get the UVD designer data stored in the redis database
+     *
+     * @param {string} serviceId
+     * @returns {Promise<any>}
+     */
+    public async getServiceIdData(serviceId: string): Promise<any> {
+        if (!serviceId) throw new Error("Service ID is not valid");
+        try {
+            const result = await this.redis.getAsync(serviceId);
+            if (result) {
+                return JSON.parse(result);
+            }
+            return undefined;
+        } catch (error) {
             throw error;
         }
     }
 
     public getAllShortCodes(): Promise<Array<ShortCodeData>> {
-        return new Promise(r =>
-            r(
+        return new Promise(resolve =>
+            resolve(
                 this.db.map(sc => {
                     sc.mapKey = decodeDesECB(sc.mapKey);
                     return sc;
@@ -74,61 +91,56 @@ export class ShortCodeDb {
         );
     }
 
-    public createShortCode(shortcode: string, description: string): Promise<ShortCodeData> {
-        return new Promise((resolve, reject) => {
+    public async createShortCode(shortcode: string, description: string): Promise<ShortCodeData> {
+        try {
+            const encryptShortcode = encodeDesECB(shortcode);
+            // ensure the shortcode is not already defined
+            const isExist = this.db.find(t => t.mapKey === encryptShortcode);
+            if (isExist) {
+                throw new Error("Short code already exist");
+            }
+            const newShortCode = new ShortCodeData(encryptShortcode, description);
+            this.db.push(newShortCode);
+            await this.save();
+            // revert back
+            newShortCode.mapKey = shortcode;
+            return newShortCode;
+        } catch (error) {
+            this.log.error(error.message);
+            throw error;
+        }
+    }
+
+    public async removeShortCode(serviceId: string): Promise<ShortCodeData> {
+        const idx = this.db.findIndex(h => h.serviceId === serviceId);
+        if (idx === -1) {
+            throw new Error("The service Id does not exist");
+        } else {
             try {
-                const encryptShortcode = encodeDesECB(shortcode);
-                // ensure the shortcode is not already defined
-                const isExist = this.db.find(t => t.mapKey === encryptShortcode);
-                if (isExist) {
-                    reject(new Error("Short code already exist"));
-                    return;
-                }
-                const newShortCode = new ShortCodeData(encryptShortcode, description);
-                this.db.push(newShortCode);
-                this.save();
-                // revert back
-                newShortCode.mapKey = shortcode;
-                resolve(newShortCode);
+                const scd = this.db[idx];
+                this.db.splice(idx, 1);
+                await this.save();
+                return scd;
             } catch (error) {
-                reject(error);
+                this.log.error(error.message);
+                throw error;
             }
-        });
+        }
     }
 
-    public removeShortCode(serviceId: string): Promise<ShortCodeData> {
-        return new Promise((resolve, reject) => {
-            const idx = this.db.findIndex(h => h.serviceId === serviceId);
-            if (idx === -1) {
-                reject(new Error("The service Id does not exist"));
-            } else {
-                try {
-                    const scd = this.db[idx];
-                    this.db.splice(idx, 1);
-                    this.save();
-                    resolve(scd);
-                } catch (error) {
-                    reject(error);
-                }
+    public async updateShortCode(serviceId: string, shortcode: string, desc: string): Promise<void> {
+        const idx = this.db.findIndex(h => h.serviceId === serviceId);
+        if (idx === -1) {
+            throw new Error("The service Id does not exist");
+        } else {
+            this.db[idx].mapKey = encodeDesECB(shortcode);
+            this.db[idx].description = desc;
+            try {
+                await this.save();
+            } catch (error) {
+                this.log.error(error.message);
+                throw error;
             }
-        });
-    }
-
-    public updateShortCode(serviceId: string, shortcode: string, desc: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const idx = this.db.findIndex(h => h.serviceId === serviceId);
-            if (idx === -1) {
-                reject(new Error("The service Id does not exist"));
-            } else {
-                this.db[idx].mapKey = encodeDesECB(shortcode);
-                this.db[idx].description = desc;
-                try {
-                    this.save();
-                    resolve();
-                } catch (error) {
-                    reject(error);
-                }
-            }
-        });
+        }
     }
 }

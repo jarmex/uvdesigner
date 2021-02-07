@@ -3,6 +3,8 @@ import Logo from "../../Images/uvlogo.png";
 import styled from "styled-components";
 import { Button } from "reactstrap";
 import { useHistory } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCog } from "@fortawesome/free-solid-svg-icons";
 
 const HeaderContainer = styled.header`
   height: 80px;
@@ -22,6 +24,12 @@ const BStyled = styled(Button)`
   font-weight: bold;
 `;
 
+const RightAlignItems = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+`;
 const HeaderComponent = () => {
   const history = useHistory();
 
@@ -29,14 +37,25 @@ const HeaderComponent = () => {
     sessionStorage.clear();
     history.push("/");
   };
+  const handleSettings = () => {
+    history.push("/settings/mtn");
+  };
   return (
     <HeaderContainer>
       <img src={Logo} alt="USSD Visual Designer" />
-      <div>
+      <RightAlignItems>
+        <div>
+          <FontAwesomeIcon
+            icon={faCog}
+            size="lg"
+            style={{ color: "#026465" }}
+            onClick={handleSettings}
+          />
+        </div>
         <BStyled color="link" onClick={handleLogout}>
           Logout
         </BStyled>
-      </div>
+      </RightAlignItems>
     </HeaderContainer>
   );
 };

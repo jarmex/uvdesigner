@@ -25,17 +25,17 @@ const useAxios = (req: AxiosDataProps) => {
     config = { ...config, ...result };
   } else {
     config = { ...config, url: req.url, method: req.method };
+
+    if (req.data) {
+      config.data = req.data;
+    }
   }
 
   const fetchData = async (options: any = {}) => {
     try {
       dispatch({ type: ActionTypes.Start });
       const updateConfig = { ...config, ...options };
-      if (typeof req !== "function") {
-        if (req.method === "post") {
-          config.data = req.data;
-        }
-      }
+
       const { data, status, statusText } = await axios(updateConfig);
       dispatch({
         type: ActionTypes.Success,

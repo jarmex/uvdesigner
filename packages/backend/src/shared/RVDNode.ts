@@ -1,6 +1,3 @@
-import { promisify } from "util";
-import { readFile } from "fs";
-import { join } from "path";
 import { Kinds, ussdCollectGatherType } from "./Constants";
 import UssdSaySteps from "./UssdSay";
 import UssdCollectSteps from "./UssdCollectStep";
@@ -9,98 +6,55 @@ import ExternalServiceSteps from "./ExternalServiceStep";
 import ControlSteps from "./ControlSteps";
 import { getLogger } from "../utils/logger";
 import { IGenericObj } from "./types";
-import { AsyncRedis } from "./AsyncRedis";
+import { ShortCodeDb } from "../db";
 
 const logger = getLogger("RVD");
 
-const isObjEmpty = (obj: any) => {
+/*const isObjEmpty = (obj: any) => {
     if (obj !== undefined && obj !== null && typeof obj === "object") {
         return Object.keys(obj).length === 0;
     }
     return true;
 };
-
-type RVDProcess = (moduleName: string) => any;
-// create a promise version of the fs readFile
-const freadAsync = promisify(readFile);
+*/
 
 export default class RVDNode {
     // declare class variables
-    sessionInfo: IGenericObj;
-    temp: IGenericObj;
-    cache: AsyncRedis;
-    data: IGenericObj;
-    responses: any;
-    config: IGenericObj;
-    rvdjson: IGenericObj;
+    private temp: IGenericObj;
+    private data: IGenericObj;
+    private db: ShortCodeDb;
+    private rvdjson: any;
+    private startModule: string;
 
-    constructor(options: IGenericObj = {}) {
-        const { session = {}, cache, state = {}, rvdjson = {}, config = {} } = options;
-
-        this.sessionInfo = session;
-
+    constructor(state: IGenericObj = {}) {
+        this.db = new ShortCodeDb();
         this.temp = {};
-
-        if (!cache) {
-            throw new Error("The cache cannot be empty");
-        }
-
-        this.cache = cache;
-
-        if (!isObjEmpty(session)) {
-            const { responses, ...rest } = session;
-            this.responses = responses;
-            this.data = { ...rest, ...state };
-        } else {
-            this.data = state;
-            this.responses = null;
-        }
-
-        this.rvdjson = rvdjson;
-        this.config = config;
+        this.data = { ...state };
     }
 
-    readStates = async (shortcode: string) => {
-        let retvalue = null;
-        try {
-            const rvdjs = await this.cache.getAsync(shortcode);
-            if (rvdjs && !isObjEmpty(rvdjs)) {
-                return JSON.parse(rvdjs);
+    public async readRvdData() {
+        if (!this.rvdjson) {
+            const serviceData = await this.db.getServiceIdData(this.data.$serviceId);
+            if (!serviceData) {
+                throw new Error("Unknown serviceId request");
             }
-            const { sid, workSpaceDir } = this.config;
-            if (sid && workSpaceDir) {
-                try {
-                    const spath = join(workSpaceDir, sid, "state");
-                    const result = await freadAsync(spath, "utf8");
-                    await this.cache.setAsync(shortcode, result);
-                    retvalue = JSON.parse(result);
-                } catch (error) {
-                    logger.error(error.message);
-                }
-            } else {
-                logger.error("Invalid SID or WORKSPACE_DIR");
+
+            if (serviceData && serviceData.nodes && !Array.isArray(serviceData.nodes)) {
+                throw new Error("Unknown node for the serviceId");
             }
-        } catch (error) {
-            logger.error(error.message);
+            this.rvdjson = serviceData;
+            this.startModule = serviceData.header.startNodeName;
         }
-        if (retvalue) {
-            return retvalue;
-        }
-        logger.debug("Caching the shortcode to memory....");
-
-        await this.cache.setAsync(shortcode, JSON.stringify(this.rvdjson));
-        return this.rvdjson;
-    };
-
+    }
     /**
-     *Process the RVD for USSD
+     * Process the RVD for USSD
      * @param {String} moduleName the name of the module to load for the USSD flow
      * @memberof RVDNode
      */
-    rvdProcess: RVDProcess = async (moduleName: string) => {
-        const { $core_From: msisdn, $cell_id: cellid, $shortcode } = this.data;
-        const cRvd = await this.readStates($shortcode);
-        const allnodes = cRvd.nodes.find((item: any) => item.name === moduleName);
+    private async processNodeModule(moduleStartName: string): Promise<any> {
+        const { $core_From: msisdn, $cell_id: cellid } = this.data;
+        const moduleName = moduleStartName || this.startModule;
+        const allnodes = this.rvdjson.nodes.find((item: any) => item.name === moduleName);
         const moduleLabel = allnodes ? allnodes.label : "";
         logger.info(`MODULE: ${moduleName}, NAME: ${moduleLabel}, MSISDN=${msisdn}, cellid=${cellid}`);
         if (!allnodes) {
@@ -179,12 +133,12 @@ export default class RVDNode {
             }
         }
         if (continueTo) {
-            return this.rvdProcess(continueTo);
+            return this.processNodeModule(continueTo);
         }
         // return the message
         retmsg.data = { ...this.data };
         return retmsg;
-    };
+    }
 
     /**
      * check if a user session already exist. If so pick the information from the session
@@ -193,36 +147,30 @@ export default class RVDNode {
      * @param {String} input the USSD input string
      * @memberof RVDNode
      */
-    rvd = async (input: string) => {
+    public async processInput(input: string): Promise<any> {
         // check if the session exist
-        if (this.sessionInfo) {
-            // check if there input is in relation with a response
-            if (this.responses) {
-                const { menu, collectdigits } = ussdCollectGatherType;
-                // map through to get the next module
-                if (this.responses.gatherType === menu) {
-                    const uinput = parseInt(input, 10);
-                    const mm = this.responses.mappings.find((rep: any) => parseInt(rep.digits, 10) === uinput);
-                    if (mm) {
-                        return this.rvdProcess(mm.next);
-                    }
-                    // PROCESS WHEN INFO DOES NOT EXIST
-                } else if (this.responses.gatherType === collectdigits) {
-                    const { next, collectVariable, scope } = this.responses.collectdigits;
-                    if (scope === "application") {
-                        this.data[`$${collectVariable}`] = input;
-                    } else {
-                        this.temp[`$${collectVariable}`] = input;
-                    }
-                    return this.rvdProcess(next);
+        // check if there input is in relation with a response
+        if (this.data.responses) {
+            const response = this.data.responses;
+            const { menu, collectdigits } = ussdCollectGatherType;
+            // map through to get the next module
+            if (response.gatherType === menu) {
+                const uinput = parseInt(input, 10);
+                const userMenuResponse = response.mappings.find((rep: any) => parseInt(rep.digits, 10) === uinput);
+                if (userMenuResponse) {
+                    return this.processNodeModule(userMenuResponse.next);
                 }
-            } else {
-                return this.rvdProcess(this.sessionInfo.moduleName);
+                // PROCESS WHEN INFO DOES NOT EXIST
+            } else if (response.gatherType === collectdigits) {
+                const { next, collectVariable, scope } = response.collectdigits;
+                if (scope === "application") {
+                    this.data[`$${collectVariable}`] = input;
+                } else {
+                    this.temp[`$${collectVariable}`] = input;
+                }
+                return this.processNodeModule(next);
             }
         }
-        const defaultRVD = await this.readStates(this.data.$shortcode);
-
-        const currentModule = defaultRVD.header.startNodeName;
-        return this.rvdProcess(currentModule);
-    };
+        return this.processNodeModule(this.data.moduleName);
+    }
 }

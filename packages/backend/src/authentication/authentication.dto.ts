@@ -10,6 +10,8 @@ export class CreateAccountDto {
     @IsString()
     @IsNotEmpty()
     public id: string;
+    @IsString()
+    public createdBy: string;
 }
 
 export class LoginDto {
@@ -27,5 +29,5 @@ export interface TokenData {
 }
 
 export interface DataStoredInToken {
-    id: string;
+    username: string;
 }

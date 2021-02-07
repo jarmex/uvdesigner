@@ -10,6 +10,7 @@ import MainPage from "./Screens/MainBody/MainPage";
 import LoginPage from "./Screens/Login/LoginPage";
 import PrivateRoute from "./PrivateRoute";
 import Register from "./Screens/Login/Register";
+import SettingsScreen from "./Screens/Settings/SettingsScreen";
 
 function App() {
   return (
@@ -24,8 +25,11 @@ function App() {
               <PrivateRoute path="/shortcodes">
                 <ShortCodePage />
               </PrivateRoute>
-              <PrivateRoute path="/main/:id">
+              <PrivateRoute path="/main/:serviceId">
                 <MainPage />
+              </PrivateRoute>
+              <PrivateRoute path="/settings/mtn">
+                <SettingsScreen />
               </PrivateRoute>
               <Route path="/">
                 <LoginPage />

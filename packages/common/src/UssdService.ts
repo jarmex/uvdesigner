@@ -6,7 +6,8 @@ export class UssdService {
     try {
       const { ussdServerUrl, ...bodyRest } = requestData;
       const { data } = await axios({
-        url: ussdServerUrl,
+        baseURL: ussdServerUrl,
+        url: "ussd",
         method: "POST",
         data: bodyRest,
       });
@@ -33,7 +34,7 @@ export class UssdService {
     connector: Connector
   ): Promise<IGenericObj> {
     try {
-      const settingurl = `${url}/settings/${connector}`;
+      const settingurl = `${url}/settings/${connector.toLowerCase()}`;
       const { data } = await axios.post(settingurl, { connector });
       return data;
     } catch (error) {

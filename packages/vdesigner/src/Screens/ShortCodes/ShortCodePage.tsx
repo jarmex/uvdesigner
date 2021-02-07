@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import useAxios from "../../Utils/AxiosRequest";
 import styled from "styled-components";
 import { Alert, Button, Col, Container, Row, Spinner, Table } from "reactstrap";
 import { useHistory } from "react-router-dom";
 import CreateShortCode from "./CreateShortCode";
 import HeaderComponent from "../../Components/Header";
+import { NodeContext } from "../../Data/NodesDataContext";
 
 const ShortCodeRow = styled.tr`
   &:hover {
@@ -28,6 +29,8 @@ const ShortCodePage = () => {
 
   const history = useHistory();
 
+  const { setServiceId, clearModules } = useContext(NodeContext);
+
   const toggle = () => setModal(!modal);
 
   const getData = () => {
@@ -42,7 +45,12 @@ const ShortCodePage = () => {
   const handleShortCodeSelected = async (serviceId: string) => {
     // make a request to the the current uvd using the serviceId
     try {
-      sessionStorage.setItem("serviceId", serviceId);
+      // clear the previous data
+      //sessionStorage.setItem("serviceId", serviceId);
+      if (setServiceId) {
+        clearModules!();
+        setServiceId(serviceId);
+      }
       history.push(`/main/${serviceId}`);
     } catch (error) {
       setGettingUvd({

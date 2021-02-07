@@ -21,6 +21,7 @@ import TabNavItem from "./TabNavItem";
 import HeaderComponent from "../../Components/Header";
 import useAxios from "../../Utils/AxiosRequest";
 import { ensureArray } from "../../Utils";
+import { useParams } from "react-router-dom";
 
 const MenuButtons = styled(Col)`
   padding-top: 14px;
@@ -45,9 +46,13 @@ const MainPage = () => {
     setUVDProjectHeader,
     changeActiveTab,
     activeTab,
+    alerts,
+    removeAlert,
+    setServiceId,
   } = useContext(NodeContext);
+  const { serviceId } = useParams<Record<string, string | undefined>>();
   const { loading, data: response, error } = useAxios(() => {
-    const serviceId = sessionStorage.getItem("serviceId");
+    // const serviceId = sessionStorage.getItem("serviceId");
     return {
       url: `/uvd/${serviceId}`,
       method: "get",
@@ -56,6 +61,12 @@ const MainPage = () => {
 
   const isProcessed = useRef(false);
 
+  useEffect(() => {
+    if (setServiceId && serviceId) {
+      setServiceId(serviceId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     const processResponse = () => {
       let startName = "start";
@@ -153,6 +164,28 @@ const MainPage = () => {
       </TabContent>
     );
   };
+  const onDismissAlert = (idx: string) => {
+    removeAlert!(idx);
+  };
+  const ShowAlerts = () => {
+    if (alerts) {
+      return (
+        <React.Fragment>
+          {alerts.map((art, i) => (
+            <Alert
+              key={i}
+              color={art.color}
+              isOpen={true}
+              toggle={() => onDismissAlert(art.module)}
+            >
+              {art.message} (Module: {art.module})
+            </Alert>
+          ))}
+        </React.Fragment>
+      );
+    }
+    return null;
+  };
 
   return (
     <React.Fragment>
@@ -164,6 +197,7 @@ const MainPage = () => {
       ) : (
         <VContainer fluid>
           {error && <Alert color="danger">{error.message}</Alert>}
+          <ShowAlerts />
           <DndProvider backend={HTML5Backend}>
             <Row>
               <MenuButtons sm="2">

@@ -78,6 +78,15 @@ class AirtelTigoController implements IController {
       }
     }
   };
+  private formatDate(): string {
+    const date = new Date();
+    const toISO = date
+      .toISOString()
+      .replace(/T/g, " ")
+      .replace(/\-/g, "/")
+      .split(".")[0];
+    return toISO;
+  }
 
   private processUSSDServerResponse(
     req: USSDDynMenuRequest,
@@ -87,8 +96,8 @@ class AirtelTigoController implements IController {
       param: {
         id: "1",
         value: response.message,
-        rspFlag: "1",
-        rspURL: AirtelTigoConfig.responseUrl,
+        rspFlag: response.isContinue ? "1" : "2",
+        //rspURL: AirtelTigoConfig.responseUrl,
         appendIndex: "0",
         default: "1",
       },
@@ -100,11 +109,11 @@ class AirtelTigoController implements IController {
       starCode: req.starCode,
       langId: AirtelTigoConfig.langId,
       encodingScheme: AirtelTigoConfig.encodingScheme,
-      transferCode: "success",
+      // transferCode: "success",
       dataSet,
       ErrCode: "1",
-      errURL: AirtelTigoConfig.responseUrl,
-      timeStamp: req.timeStamp,
+      //errURL: AirtelTigoConfig.responseUrl,
+      timeStamp: this.formatDate(),
     };
     const fb: IAirtelTigoUSSDResponse = {
       USSDDynMenuResponse: ussdResp,

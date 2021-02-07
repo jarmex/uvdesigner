@@ -57,6 +57,6 @@ app.listen("MTN application listening on 8080", async () => {
       }
     }
   } catch (error) {
-    console.error(error);
+    logger.error(error.message);
   }
 });

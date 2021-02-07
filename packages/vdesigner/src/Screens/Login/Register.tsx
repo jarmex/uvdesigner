@@ -127,6 +127,7 @@ const Register = () => {
         id,
         username: data.username,
         password: data.password,
+        createdBy: id,
       },
     });
   };
@@ -183,7 +184,7 @@ const Register = () => {
                       <InputStyled
                         id="username"
                         required
-                        type="tex"
+                        type="text"
                         placeholder="Enter username"
                         name="username"
                         value={data.username}

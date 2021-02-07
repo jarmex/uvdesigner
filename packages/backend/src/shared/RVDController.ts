@@ -48,13 +48,43 @@ export class RVDController {
      * @param {String} msisdn The subscriber number
      * @memberof USSDFlowController
      */
-    getSessionData = async (sessionid: string) => {
+    getSessionData = async (request: IRVDSession): Promise<any | null> => {
         try {
+            const { msisdn, sessionId, input, shortcode, serviceId } = request;
+            const _sessdionId = sessionId || msisdn;
             // check if the subscriber key exist
-            const sessionsubdata = await redis.getAsync(sessionid);
+            const sessionsubdata = await redis.getAsync(_sessdionId);
             if (sessionsubdata) {
                 return JSON.parse(sessionsubdata);
             }
+
+            // return the default session variables
+            // create a new session for this user
+            const _serviceId = await this.getSid(shortcode || serviceId || input);
+            if (!_serviceId) {
+                logger.warn(`ServiceId information not found for shortcode = ${shortcode || serviceId || input}`);
+                return null;
+            }
+            const state: IGenericObj = {
+                $core_From: msisdn,
+                $cell_id: request.cellid || "",
+                $core_CellId: request.cellid || "",
+                $session_id: sessionId,
+                $imsi: request.imsi || "",
+                $core_Imsi: request.imsi || "",
+                $core_Body: input,
+                $cellid: request.cellid || "",
+                $serviceId: _serviceId,
+                $core_To: shortcode || serviceId,
+                $shortcode: shortcode || serviceId,
+                $core_AccountSid: _serviceId,
+            };
+            // check if there is lac, mcc, mnc etc
+            if (request.lac && request.mcc) {
+                state.$cellid = `${request.mcc}${request.mnc}${request.lac}${request.cellid}`;
+                state.$core_CellId = `${request.mcc}${request.mnc}${request.lac}${request.cellid}`;
+            }
+            return state;
         } catch (error) {
             logger.error(error.message);
         }
@@ -80,21 +110,15 @@ export class RVDController {
     };
 
     getSid = async (ussdInput: string) => {
-        const saveShortCode = `sh${ussdInput}`.replace(/#/g, "").replace(/\*/g, "");
         try {
-            const sid = (await redis.getAsync(saveShortCode)) as string;
-            if (!sid) {
-                const sh = new ShortCodeDb();
-                const allsh = await sh.getAllShortCodes();
-                if (allsh) {
-                    const newsid = allsh.find(h => h.mapKey === ussdInput);
-                    if (newsid) {
-                        await redis.setAsync(saveShortCode, newsid.serviceId);
-                        return newsid.serviceId;
-                    }
+            const sh = new ShortCodeDb();
+            await sh.readAllShortcodes();
+            const allsh = await sh.getAllShortCodes();
+            if (allsh) {
+                const newsid = allsh.find(h => h.mapKey === ussdInput);
+                if (newsid) {
+                    return newsid.serviceId;
                 }
-            } else {
-                return sid;
             }
         } catch (error) {
             logger.error(error.message);
@@ -105,60 +129,23 @@ export class RVDController {
     // this is where the logic for the new implementation should happen
     entryPoint: EntryPointFunc = async (request: IRVDSession) => {
         try {
-            const { msisdn, sessionId, input, ussdString, shortcode, senderCB } = request;
+            const { msisdn, sessionId, input } = request;
 
-            const newSessionId = sessionId || senderCB || msisdn;
+            const newSessionId = sessionId || msisdn;
             // get the session. if the session does not exist then process the first stage of rvd
-            const subSession = await this.getSessionData(newSessionId);
-            // logger.info(`${JSON.stringify(request)} Session=${JSON.stringify(subSession)}`);
-            // application state
-            const state: IGenericObj = {
-                $core_From: msisdn,
-                $cell_id: request.cellid || "",
-                $core_CellId: request.cellid || "",
-                $session_id: sessionId,
-                $imsi: request.imsi || "",
-                $core_Imsi: request.imsi || "",
-                $core_Body: input,
-                $cellid: request.cellid || "",
-            };
-            const _shortcode = shortcode || ussdString || input;
-            // check if there is lac, mcc, mnc etc
-            if (request.lac && request.mcc) {
-                state.$cellid = `${request.mcc}${request.mnc}${request.lac}${request.cellid}`;
-                state.$core_CellId = `${request.mcc}${request.mnc}${request.lac}${request.cellid}`;
-            }
-            // the session does not exist so we need to create it for the first time.
-            if (!subSession) {
-                // the first time request, the input is the same as the shortcode
-                state.$shortcode = _shortcode;
-                state.$core_To = _shortcode;
-            } else {
-                state.$shortcode = subSession.$shortcode;
-            }
-
-            const sid = await this.getSid(state.$shortcode);
-            if (!sid) {
-                logger.warn(`SID information not found. ShortCode = ${state.$shortcode}`);
+            const state = await this.getSessionData(request);
+            // if we are unable to get the session data
+            if (state === null) {
                 return {
                     continue: false,
                     message: this.defaultErrorMsg,
                 };
-            } else {
-                state.$core_AccountSid = sid;
             }
-            const rvdController = new RVDNode({
-                session: subSession,
-                state,
-                cache: redis,
-                rvdjson: this.rvdjson,
-                config: {
-                    workSpaceDir: this.defaultWorkSpace,
-                    sid,
-                },
-            });
+            const rvdController = new RVDNode(state);
+            // read the first data
+            await rvdController.readRvdData();
 
-            const response = await rvdController.rvd(input);
+            const response = await rvdController.processInput(input);
 
             const isContinue = response.next ? true : false;
             // check if storing session is needed

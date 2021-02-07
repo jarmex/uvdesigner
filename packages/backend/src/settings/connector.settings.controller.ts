@@ -1,8 +1,8 @@
 import { Connector, HttpException, IController } from "@uvdesigner/common";
-import { AccountDatabase } from "db";
-import { AirtelTigoSettings, AirtelTigoSettingsDto, MTNSettings, MtnSettingsDto } from "db/settings.dto";
+import { AccountDatabase } from "../db";
+import { AirtelTigoSettings, AirtelTigoSettingsDto, MTNSettings, MtnSettingsDto } from "../db/settings.dto";
 import { NextFunction, Router, Request, Response } from "express";
-import { validationMiddleware } from "middleware/validation.middleware";
+import { validationMiddleware } from "../middleware/validation.middleware";
 
 class ConnectorSettingController implements IController {
     public router = Router();
@@ -22,18 +22,23 @@ class ConnectorSettingController implements IController {
         );
     }
 
-    handleSettingRequest = (req: Request, resp: Response, next: NextFunction) => {
-        const connector = req.body.connector as Connector;
-        if (!connector) {
-            next(new HttpException(404, "Resource does not exist"));
-            return;
+    handleSettingRequest = async (req: Request, resp: Response, next: NextFunction) => {
+        try {
+            const connector = req.body.connector as Connector;
+            if (!connector) {
+                next(new HttpException(404, "Resource does not exist"));
+                return;
+            }
+            const settings = await this.db.getSettings(connector);
+            if (settings === null) {
+                next(new HttpException(404, "Resource does not exist for the connector"));
+                return;
+            }
+            resp.send(settings);
+        } catch (error) {
+            //next(new HttpException(404, error.message));
+            resp.send({});
         }
-        const settings = this.db.getSettings(connector);
-        if (settings === null) {
-            next(new HttpException(404, "Resource does not exist for the connector"));
-            return;
-        }
-        resp.send(settings);
     };
 
     handleMTNUpdate = (req: Request, res: Response, next: NextFunction) => {

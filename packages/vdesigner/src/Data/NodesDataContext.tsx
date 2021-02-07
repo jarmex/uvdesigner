@@ -41,6 +41,7 @@ export interface UVDProject {
 }
 
 export interface INodeProps {
+  serviceId: string;
   nodes: INodeItem[];
   uvdProjectHeader: UVDProjectHeader;
   addModule: () => void;
@@ -48,6 +49,7 @@ export interface INodeProps {
   addStep: (module: string, index: number, step: IStep) => void;
   removeStep: (module: string, index: number) => void;
   updateStep: (moduleIndex: number, index: number, data: IStep) => void;
+  clearModules: () => void;
   save: () => Promise<void>;
   activeTab: string;
   changeActiveTab: (tabName: string) => void;
@@ -59,6 +61,7 @@ export interface INodeProps {
   setSessionData: React.Dispatch<React.SetStateAction<SessionData>>;
   setUVDProjectHeader: React.Dispatch<React.SetStateAction<UVDProjectHeader>>;
   setNodes: React.Dispatch<React.SetStateAction<INodeItem[]>>;
+  setServiceId: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export const NodeContext = React.createContext<Partial<INodeProps>>({});

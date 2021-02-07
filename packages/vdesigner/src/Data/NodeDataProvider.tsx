@@ -22,6 +22,7 @@ const startNode: INodeItem = {
 
 const NodeDataProvider = ({ children }: Props) => {
   const [nodes, setNodes] = useState<INodeItem[]>([startNode]);
+  const [serviceId, setServiceId] = useState<string>("");
   const [activeTab, setActiveTab] = useState("start");
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [uvdProjectHeader, setUVDProjectHeader] = useState<UVDProjectHeader>({
@@ -36,6 +37,9 @@ const NodeDataProvider = ({ children }: Props) => {
       changeActiveTab: (tabName: string) => {
         setActiveTab(tabName);
         //TODO if the dropdown is selected make the tab active
+      },
+      clearModules: () => {
+        setNodes([]);
       },
       addModule: () => {
         let newName: string = "";
@@ -157,6 +161,8 @@ const NodeDataProvider = ({ children }: Props) => {
         setNodes,
         uvdProjectHeader,
         setUVDProjectHeader,
+        serviceId,
+        setServiceId,
       }}
     >
       {children}

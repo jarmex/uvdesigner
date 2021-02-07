@@ -7,7 +7,7 @@ interface IAirtelTigoConfiguration {
 
 const config: IAirtelTigoConfiguration = {
   ussdServerUrl:
-    process.env.USSDSERVER_ENDPOINT || "http://ussdserver:8080/api/ussd",
+    process.env.USSDSERVER_ENDPOINT || "http://ussdserver:8080/api",
   langId: process.env.LANGID || "1",
   encodingScheme: process.env.ENCODINGSCHEME || "0",
   responseUrl:

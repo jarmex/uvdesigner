@@ -8,39 +8,47 @@ RUN apk --no-cache add --virtual builds-deps build-base python
 
 # builder stage
 FROM pnpm as install
+ARG PACKAGE_NAME=""
 WORKDIR /app
 COPY pnpm-lock.yaml .
 COPY pnpm-workspace.yaml .
-COPY package.json ./
+COPY .npmrc .npmrc
+COPY *.json ./
 # copy only the package.json files
-COPY packages/backend/package.json packages/backend/package.json
-COPY packages/vdesigner/package.json packages/vdesigner/package.json
+COPY packages/${PACKAGE_NAME}/package.json packages/${PACKAGE_NAME}/package.json
+# copy the common package json file only 
+COPY packages/common/package.json packages/common/package.json
 
 
 # install stage 
 FROM install as builder
-ARG PACKAGE_NAME="backend"
+ARG PACKAGE_NAME=""
 WORKDIR /app
+# copy the common package 
+COPY packages/common/ packages/common/
+# build the common 
+COPY packages/${PACKAGE_NAME}/ packages/${PACKAGE_NAME}/
 # install dependencies for the selected package and its dependencies (direct and non-direct)
-RUN pnpm install -r --reporter=append-only --ignore-scripts --filter @uvdesigner/${PACKAGE_NAME}
-COPY packages/ packages/
-RUN pnpm run build --filter @uvdesigner/${PACKAGE_NAME} 
+RUN pnpm install -r --reporter=silent --filter @uvdesigner/common --filter @uvdesigner/${PACKAGE_NAME}
+RUN pnpm run build --filter @uvdesigner/common --filter @uvdesigner/${PACKAGE_NAME} 
 
 
 # backend target
-FROM install as backend
-ARG PACKAGE_NAME="backend"
+FROM install as runner
+ARG PACKAGE_NAME=""
 ENV NPM_CONFIG_LOGLEVEL warn
 ARG PORT=8080
 ENV NODE_ENV production
 ENV PORT ${PORT}
 EXPOSE ${PORT}
 WORKDIR /app
-RUN pnpm install -r -P --no-optional --frozen-lockfile --reporter=silent --shamefully-hoist --filter @uvdesigner/${PACKAGE_NAME} && \
+# build the common 
+RUN pnpm install -r -P --frozen-lockfile --reporter=silent --shamefully-hoist --filter @uvdesigner/common --filter @uvdesigner/${PACKAGE_NAME} && \
   pnpm store prune && \
 	rm -rf ~/.pnpm-store
-
-COPY --from=builder /app/packages/backend/dist/ ./dist/
+WORKDIR /app/packages/${PACKAGE_NAME}
+COPY --from=builder /app/packages/common/dist/ ./node_modules/@uvdesigner/common/dist/
+COPY --from=builder /app/packages/${PACKAGE_NAME}/dist/ ./dist/
 
 CMD ["node", "dist/server.js"]
 

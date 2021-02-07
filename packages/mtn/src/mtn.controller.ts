@@ -56,7 +56,7 @@ export class MtnController implements IController {
         isAsync: true,
         sessionId: result.sessionId,
         responseUrl: "",
-        ussdServerUrl: "",
+        ussdServerUrl: process.env.USSDSERVER_ENDPOINT || "",
         connector: "MTN",
         input: "",
         ...result,

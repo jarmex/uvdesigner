@@ -41,12 +41,14 @@ const MainBodyHeader = () => {
   const startToggle = () => setDropdownStart((p) => !p);
 
   const {
+    serviceId,
     nodes,
     setNodes,
     addModule,
     uvdProjectHeader,
     setUVDProjectHeader,
     changeActiveTab,
+    addAlert,
   } = useContext(NodeContext);
 
   const getStartModule = () => {
@@ -66,24 +68,32 @@ const MainBodyHeader = () => {
   };
 
   const handleSaveData = async () => {
-    const servId = sessionStorage.getItem("serviceId");
-    if (!servId) {
-      console.log("No Service Id");
-      return;
-    }
     if (!uvdProjectHeader) {
       // this can't happen but just making typescript happy
       return;
     }
-    if (!nodes) {
+    if (!serviceId && addAlert) {
+      addAlert({
+        color: "danger",
+        message: "Unknown Service ID or Short Code. Try again",
+        module: "main",
+      });
+      return;
+    }
+    if (!nodes && addAlert) {
+      addAlert({
+        color: "danger",
+        message: "The data cannot be saved now. Try again",
+        module: "main",
+      });
       return;
     }
     const header: any = { ...uvdProjectHeader };
     // get the lastStepId
-    const lastStepId = nodes
+    const lastStepId = nodes!
       .map((item) => item.steps.length)
       .reduce((acc, prv) => acc + prv, 0);
-    const lastNodeId = nodes.length;
+    const lastNodeId = nodes!.length;
     const dataToSave = nodes?.map((item) => {
       return {
         kind: item.kind,
@@ -104,7 +114,7 @@ const MainBodyHeader = () => {
     // make a request to save the data
     request({
       data: {
-        serviceId: servId,
+        serviceId,
         message: project,
       },
     });

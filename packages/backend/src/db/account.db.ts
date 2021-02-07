@@ -1,209 +1,147 @@
 import { plainToClass } from "class-transformer";
-import { writeFileSync, readFileSync, mkdirSync, existsSync } from "fs";
 import { AccountData } from "./account.dto";
 import { v4 } from "uuid";
-import { dirname, join } from "path";
 import { getLogger, Logger } from "../utils";
-import { AirtelTigoSettings, ConnectorSettings, MTNSettings } from "./settings.dto";
+import { AirtelTigoSettings, MTNSettings } from "./settings.dto";
 import { Connector } from "@uvdesigner/common";
-
-type SaveType = "Setting" | "Account";
+import { AsyncRedis } from "../shared/AsyncRedis";
+import Environment from "../shared/environment";
 
 type ConSettings = MTNSettings | AirtelTigoSettings | null;
 
 export class AccountDatabase {
-    private filepath: string;
-    private db: Array<AccountData> = new Array<AccountData>();
     private log: Logger;
-    private settingFile: string;
-    private connectorSetting: ConnectorSettings;
-    private saveType: SaveType;
+    private redis: AsyncRedis;
 
     constructor() {
+        this.redis = new AsyncRedis({ prefix: "acnt:", ...Environment.redis });
         this.log = getLogger("account");
-        this.filepath = this.getFilePath("accounts.json");
-        this.settingFile = this.getFilePath("settings.json");
-        this.readFileContent();
-        this.readSettingsFile();
     }
 
-    private getFilePath(filename: string): string {
+    private async save(key: string, data: any) {
         try {
-            const folderpath = join(process.cwd(), "accounts");
-            if (!existsSync(folderpath)) {
-                mkdirSync(folderpath, { recursive: true });
-            }
+            await this.redis.setAsync(key, JSON.stringify(data));
         } catch (error) {
             this.log.error(error.message);
-        }
-        const fpath = join(process.cwd(), "accounts", filename);
-        return fpath;
-    }
-    private readSettingsFile() {
-        try {
-            if (!existsSync(this.settingFile)) {
-                this.connectorSetting = new ConnectorSettings();
-                return;
-            }
-            const data = readFileSync(this.settingFile);
-            this.connectorSetting = plainToClass(ConnectorSettings, JSON.parse(data.toString("utf8")));
-        } catch (error) {
-            this.log.error(error.message);
-        }
-    }
-    private readFileContent() {
-        try {
-            if (!existsSync(this.filepath)) {
-                return;
-            }
-            const data = readFileSync(this.filepath);
-            const allAccount = JSON.parse(data.toString("utf8"));
-            if (Array.isArray(allAccount)) {
-                this.db = plainToClass(AccountData, allAccount);
-            }
-        } catch (error) {
-            this.log.error(error.message);
-        }
-    }
-
-    private save(sv: SaveType = "Account") {
-        try {
-            const dir = dirname(this.filepath);
-            if (!existsSync(dir)) {
-                mkdirSync(dir, { recursive: true });
-            }
-            if (sv === "Account") {
-                writeFileSync(this.filepath, JSON.stringify(this.db));
-            } else {
-                writeFileSync(this.settingFile, JSON.stringify(this.connectorSetting));
-            }
-        } catch (error) {
-            console.log(error.message);
             throw error;
         }
     }
 
-    public addAccount(username: string, password: string): Promise<AccountData> {
-        return new Promise((resolve, reject) => {
-            try {
-                // check if the username already exist.
-                const isExist = this.db.findIndex(u => u.username === username);
-                if (isExist !== -1) {
-                    reject(new Error("User already exist"));
-                    return;
-                }
-                const acnt: AccountData = new AccountData();
-
-                acnt.id = v4();
-                acnt.createdDate = new Date().toString();
-                acnt.username = username;
-                acnt.password = password;
-
-                this.db.push(acnt);
-                this.save();
-                resolve(acnt);
-            } catch (error) {
-                reject(error);
+    public async addAccount(username: string, password: string): Promise<AccountData> {
+        if (!username) throw new Error("Invalid username");
+        try {
+            const key = `user-${username}`;
+            const userData = await this.redis.getAsync(key);
+            if (userData) {
+                throw new Error("User already exist");
             }
-        });
+            const acnt: AccountData = new AccountData();
+
+            acnt.id = v4();
+            acnt.createdDate = new Date().toString();
+            acnt.username = username;
+            acnt.password = password;
+            this.save(key, acnt);
+            return acnt;
+        } catch (error) {
+            this.log.error(error.message);
+            throw error;
+        }
     }
 
-    public getAccount(username: string): Promise<AccountData | null> {
-        return new Promise(resolve => {
-            console.log(this.db);
-            const acnt = this.db.find(a => a.username === username);
-            if (acnt) {
-                resolve(acnt);
-            } else {
-                resolve(null);
+    public async setTempAccount(createdBy: string): Promise<boolean> {
+        try {
+            const isTempSet = await this.redis.getAsync("temp-account");
+            if (isTempSet) {
+                return false;
             }
-        });
+            await this.redis.setAsync("temp-account", createdBy);
+            return true;
+        } catch (error) {
+            throw error;
+        }
     }
 
-    // this is to check if account has been created before
-    public getAccountLength(): Promise<number> {
-        return new Promise(resolve => {
-            if (this.db) {
-                resolve(this.db.length);
-            } else {
-                resolve(0);
-            }
-        });
+    public async getTempCreatedBy(): Promise<string> {
+        return this.redis.getAsync("temp-account");
+    }
+    public async changeTempAccount(value: string): Promise<void> {
+        await this.redis.setAsync("temp-account", value);
     }
 
-    public getAccountbyId(id: string): Promise<AccountData | null> {
-        return new Promise(resolve => {
-            const acnt = this.db.find(a => a.id === id);
-            if (acnt) {
-                resolve(acnt);
-            } else {
-                resolve(null);
-            }
-        });
+    public async getAccount(username: string): Promise<AccountData | null> {
+        const key = `user-${username}`;
+        try {
+            const data = await this.redis.getAsync(key);
+            if (!data) return null;
+            return plainToClass(AccountData, JSON.parse(data.toString("utf8")));
+        } catch (error) {
+            this.log.error(error.message);
+            throw error;
+        }
     }
 
-    public removeAccount(accountId: string): Promise<AccountData> {
-        return new Promise((resolve, reject) => {
-            const idx = this.db.findIndex(y => y.id === accountId);
-            if (idx !== -1) {
-                try {
-                    const delData = this.db[idx];
-                    this.db.splice(idx, 1);
-                    this.save();
-                    resolve(delData);
-                } catch (error) {
-                    reject(error);
-                }
-            }
-        });
+    public async removeAccount(username: string): Promise<AccountData> {
+        try {
+            const key = `user-${username}`;
+            const data = await this.redis.getAsync(key);
+            if (!data) throw new Error("User does not exist");
+            await this.redis.delAsync(key);
+            return plainToClass(AccountData, JSON.parse(data.toString("utf8")));
+        } catch (error) {
+            this.log.error(error.message);
+            throw error;
+        }
     }
 
-    public updateAccount(acntId: string, updateAcnt: AccountData): Promise<boolean> {
-        return new Promise((resolve, reject) => {
-            const idx = this.db.findIndex(y => y.id === acntId);
-            if (idx >= 0) {
-                try {
-                    this.db[idx] = updateAcnt;
-                    this.save();
-                    resolve(true);
-                } catch (error) {
-                    reject(error);
-                }
-            } else {
-                resolve(false);
-            }
-        });
+    public async updateAccount(username: string, updateAcnt: AccountData): Promise<boolean> {
+        try {
+            const key = `user-${username}`;
+            const isUserExist = await this.redis.getAsync(key);
+            if (!isUserExist) return false;
+            await this.redis.setAsync(key, JSON.stringify(updateAcnt));
+            return true;
+        } catch (error) {
+            this.log.error(error.message);
+            throw error;
+        }
     }
-    public updateMtnSettings(mtn: MTNSettings): Promise<boolean> {
-        return new Promise((resolve, reject) => {
-            try {
-                this.connectorSetting.mtn = mtn;
-                this.save("Setting");
-                resolve(true);
-            } catch (error) {
-                reject(error);
-            }
-        });
+    public async updateMtnSettings(mtn: MTNSettings): Promise<boolean> {
+        try {
+            if (!mtn) throw new Error("Invalid settings");
+            await this.redis.setAsync("mtn-settings", JSON.stringify(mtn));
+            return true;
+        } catch (error) {
+            this.log.error(error.message);
+            throw error;
+        }
     }
-    public updateAirtelTigoSetting(airt: AirtelTigoSettings): Promise<boolean> {
-        return new Promise((resolve, reject) => {
-            try {
-                this.connectorSetting.airteltigo = airt;
-                this.save("Setting");
-                resolve(true);
-            } catch (error) {
-                reject(error);
-            }
-        });
+    public async updateAirtelTigoSetting(airt: AirtelTigoSettings): Promise<boolean> {
+        try {
+            if (!airt) throw new Error("Invalid settings");
+            await this.redis.setAsync("airteltigo-settings", JSON.stringify(airt));
+            return true;
+        } catch (error) {
+            this.log.error(error.message);
+            throw error;
+        }
     }
-    public getSettings(connector: Connector): ConSettings {
-        switch (connector) {
-            case "MTN":
-                return this.connectorSetting.mtn;
-            case "AirtelTigo":
-                return this.connectorSetting.airteltigo;
-            default:
-                return null;
+    public async getSettings(connector: Connector): Promise<ConSettings> {
+        try {
+            const key = "mtn-settings";
+            const data = await this.redis.getAsync(key);
+            if (!data) throw new Error("No setting found for MTN");
+            switch (connector) {
+                case "MTN":
+                    return plainToClass(MTNSettings, JSON.parse(data.toString("utf8")));
+                case "AirtelTigo":
+                    return plainToClass(AirtelTigoSettings, JSON.parse(data.toString("utf8")));
+                default:
+                    return null;
+            }
+        } catch (error) {
+            this.log.error(error.message);
+            throw error;
         }
     }
 }

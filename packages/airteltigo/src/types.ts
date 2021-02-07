@@ -37,10 +37,10 @@ export interface USSDDynMenuResponse {
   starCode: string;
   langId: string;
   encodingScheme: string;
-  transferCode: string;
+  //transferCode: string;
   dataSet: DataSetResponse;
   ErrCode: string;
-  errURL: string;
+  //errURL: string;
   timeStamp: string;
 }
 
@@ -52,7 +52,7 @@ export interface ParamResponse {
   id: string;
   value: string;
   rspFlag: string;
-  rspURL: string;
+  //rspURL: string;
   appendIndex: string;
   default: string;
 }

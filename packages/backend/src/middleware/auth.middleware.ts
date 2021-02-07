@@ -13,7 +13,7 @@ async function authMiddleware(request: RequestWithAccount, _: Response, next: Ne
             const secret = Environment.jwtSecret;
             const verifyResponse = jwt.verify(cookies.Authorization, secret) as DataStoredInToken;
             const db = new AccountDatabase();
-            const user = await db.getAccountbyId(verifyResponse.id);
+            const user = await db.getAccount(verifyResponse.username);
             if (user) {
                 request.account = user;
                 next();
