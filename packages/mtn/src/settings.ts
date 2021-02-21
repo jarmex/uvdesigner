@@ -1,11 +1,15 @@
 interface ISettings {
   timeOut: number;
   baseUrl: string;
+  spPassword: string;
+  timeStamp: string;
 }
 // setting mtn ussd
 export const MtnSettings: ISettings = {
   timeOut: 30,
   baseUrl: "https://196.201.33.108:18310/",
+  spPassword: "",
+  timeStamp: "20200717143653",
 };
 
 export const ServiceUrl = {

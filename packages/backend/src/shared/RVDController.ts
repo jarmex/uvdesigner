@@ -75,8 +75,8 @@ export class RVDController {
                 $core_Body: input,
                 $cellid: request.cellid || "",
                 $serviceId: _serviceId,
-                $core_To: shortcode || serviceId,
-                $shortcode: shortcode || serviceId,
+                $core_To: shortcode || serviceId || input,
+                $shortcode: shortcode || serviceId || input,
                 $core_AccountSid: _serviceId,
             };
             // check if there is lac, mcc, mnc etc

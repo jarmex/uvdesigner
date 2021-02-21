@@ -47,6 +47,7 @@ class AirtelTigoController implements IController {
    */
   handleRequest = async (req: Request, resp: Response, next: NextFunction) => {
     const xmlBody = req.body.toString();
+    this.logger.info(xmlBody);
     const ussdRequest = this.convertTo(xmlBody);
     // make a request to the ussd server
     if (ussdRequest === null) {
@@ -63,13 +64,19 @@ class AirtelTigoController implements IController {
           sessionId: ussdRequest.USSDDynMenuRequest.sessionId,
           msisdn: ussdRequest.USSDDynMenuRequest.msisdn,
           input: ussdRequest.USSDDynMenuRequest.userData,
+          shortcode: ussdRequest.USSDDynMenuRequest.starCode,
+          ...ussdRequest,
         };
         const result = await ussdServer.request(data);
+        this.logger.debug(
+          `Response from USSD Server: ${JSON.stringify(result)}`
+        );
         // process the response from the ussd server
         const ussdResponse = this.processUSSDServerResponse(
           ussdRequest.USSDDynMenuRequest,
           result
         );
+        this.logger.info(ussdResponse);
         resp.send(ussdResponse);
       } catch (error) {
         this.logger.error(error.message);
@@ -165,8 +172,12 @@ class AirtelTigoController implements IController {
           dataSet,
         },
       };
+      this.logger.info(JSON.stringify(result));
       return result;
     } catch (error) {
+      this.logger.error(
+        "Failed to convert xml to js object. Error: " + error.message
+      );
       return null;
     }
   }

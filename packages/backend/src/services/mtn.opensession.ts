@@ -40,7 +40,7 @@ class MTNOpenSession {
 
             this.log.debug(`Data to send => ${JSON.stringify(dataToSend)}`);
 
-            const { status, statusText } = await axiosRequest(dataToSend, Environment.connector.MTN);
+            const { status, statusText } = await axiosRequest(dataToSend, dataToSend.responseUrl);
 
             this.log.info(`MTN Connector API Response => Status = ${status} (${statusText})`);
         } catch (error) {

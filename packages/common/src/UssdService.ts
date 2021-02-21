@@ -34,7 +34,7 @@ export class UssdService {
     connector: Connector
   ): Promise<IGenericObj> {
     try {
-      const settingurl = `${url}/settings/${connector.toLowerCase()}`;
+      const settingurl = `${url}/settings`;
       const { data } = await axios.post(settingurl, { connector });
       return data;
     } catch (error) {

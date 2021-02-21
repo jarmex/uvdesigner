@@ -36,6 +36,7 @@ const SettingsScreen = () => {
     spId: "",
     serviceId: "",
     activationNumber: "",
+    correlator: "",
   });
 
   const [msg, setMsg] = useState({
@@ -105,6 +106,7 @@ const SettingsScreen = () => {
       temp.spId = services[0].spId;
       temp.activationNumber = services[0].activationNumber;
       temp.serviceId = services[0].serviceId;
+      temp.correlator = services[0].correlator;
     }
     if (rest) {
       setState((prv) => ({
@@ -134,6 +136,7 @@ const SettingsScreen = () => {
               spId: data.spId,
               serviceId: data.serviceId,
               activationNumber: data.activationNumber,
+              correlator: data.correlator,
             },
           ],
           endpoint: data.endpoint,
@@ -166,65 +169,90 @@ const SettingsScreen = () => {
         <Row>
           <Col sm="12">
             <FormGroup>
-              <Input
-                required
-                type="text"
-                placeholder="spPassword"
-                name="spPassword"
-                value={data.spPassword}
-                onChange={handleDataChanged}
-              />
+              <InputGroup size="sm">
+                <InputGroupAddon addonType="prepend">
+                  <InputGroupText>Password</InputGroupText>
+                </InputGroupAddon>
+                <Input
+                  required
+                  type="text"
+                  placeholder="spPassword"
+                  name="spPassword"
+                  value={data.spPassword}
+                  onChange={handleDataChanged}
+                />
+              </InputGroup>
             </FormGroup>
           </Col>
           <Col sm="12">
             <FormGroup>
-              <Input
-                required
-                type="text"
-                placeholder="timeStamp"
-                name="timeStamp"
-                value={data.timeStamp}
-                onChange={handleDataChanged}
-              />
+              <InputGroup size="sm">
+                <InputGroupAddon addonType="prepend">
+                  <InputGroupText>TimeStamp</InputGroupText>
+                </InputGroupAddon>
+                <Input
+                  required
+                  type="text"
+                  placeholder="timeStamp"
+                  name="timeStamp"
+                  value={data.timeStamp}
+                  onChange={handleDataChanged}
+                />
+              </InputGroup>
             </FormGroup>
           </Col>
           <Col sm="12">
             <FormGroup>
-              <Input
-                required
-                type="text"
-                placeholder="endpoint"
-                name="endpoint"
-                value={data.endpoint}
-                onChange={handleDataChanged}
-              />
+              <InputGroup size="sm">
+                <InputGroupAddon addonType="prepend">
+                  <InputGroupText>Endpoint</InputGroupText>
+                </InputGroupAddon>
+                <Input
+                  required
+                  type="text"
+                  placeholder="endpoint"
+                  name="endpoint"
+                  value={data.endpoint}
+                  onChange={handleDataChanged}
+                />
+              </InputGroup>
             </FormGroup>
           </Col>
           <Col sm="12">
             <FormGroup>
-              <Input
-                required
-                type="text"
-                placeholder="baseUrl"
-                name="baseUrl"
-                value={data.baseUrl}
-                onChange={handleDataChanged}
-              />
-              <FormFeedback>
-                The base url including the port number
-              </FormFeedback>
+              <InputGroup size="sm">
+                <InputGroupAddon addonType="prepend">
+                  <InputGroupText>BaseUrl</InputGroupText>
+                </InputGroupAddon>
+                <Input
+                  required
+                  type="text"
+                  placeholder="baseUrl"
+                  name="baseUrl"
+                  value={data.baseUrl}
+                  onChange={handleDataChanged}
+                />
+                <FormFeedback>
+                  The base url including the port number
+                </FormFeedback>
+              </InputGroup>
             </FormGroup>
           </Col>
           <Col sm="12">
             <FormGroup>
-              <Input
-                required
-                type="text"
-                placeholder="timeout"
-                name="timeout"
-                value={data.timeout}
-                onChange={handleDataChanged}
-              />
+              <InputGroup size="sm">
+                <InputGroupAddon addonType="prepend">
+                  <InputGroupText>Timeout</InputGroupText>
+                </InputGroupAddon>
+                <Input
+                  required
+                  type="text"
+                  placeholder="timeout"
+                  name="timeout"
+                  value={data.timeout}
+                  onChange={handleDataChanged}
+                />
+              </InputGroup>
             </FormGroup>
           </Col>
           <Col sm="12">
@@ -264,6 +292,20 @@ const SettingsScreen = () => {
                   placeholder="Enter Activation Number e.g. *5912*9314#"
                   name="activationNumber"
                   value={data.activationNumber}
+                  onChange={handleDataChanged}
+                />
+
+                <InputGroupAddon
+                  addonType="prepend"
+                  className="input-group-append"
+                >
+                  <InputGroupText>Correlator</InputGroupText>
+                </InputGroupAddon>
+                <Input
+                  type="text"
+                  placeholder="Correlator"
+                  name="correlator"
+                  value={data.correlator}
                   onChange={handleDataChanged}
                 />
               </InputGroup>

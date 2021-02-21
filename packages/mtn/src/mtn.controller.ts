@@ -14,6 +14,7 @@ import {
 } from "./soap/notifyussd";
 import { xml2json } from "xml-js";
 import { JSONPath } from "jsonpath-plus";
+import { MtnSettings } from "./settings";
 
 enum RequestType {
   notifyUssdReception = 0,
@@ -29,7 +30,7 @@ interface IRequest extends IGenericObj {
 
 export class MtnController implements IController {
   public router: Router = Router();
-  private path: string = "notify";
+  private path: string = "/service/notify";
   private logger = getLogger("controller");
   constructor() {
     this.initRoutes();
@@ -41,12 +42,12 @@ export class MtnController implements IController {
       },
       limit: "1mb",
     });
-    this.router.post(`${this.path}/mtn`, rawParser, this.notifyService);
+    this.router.post(this.path, rawParser, this.notifyService);
   }
 
   notifyService = async (req: Request, res: Response) => {
     const { xmlResponse, ...result } = this.extractData(req.body.toString());
-    this.logger.info(result);
+    this.logger.debug(JSON.stringify(result));
     // send the request to the USSD Server for processing.
     if (result.requestType !== RequestType.Others) {
       const ussdService = new UssdService();
@@ -55,12 +56,13 @@ export class MtnController implements IController {
         msisdn: result.msisdn,
         isAsync: true,
         sessionId: result.sessionId,
-        responseUrl: "",
+        responseUrl: process.env.MTN_CONNECTOR || "",
         ussdServerUrl: process.env.USSDSERVER_ENDPOINT || "",
         connector: "MTN",
-        input: "",
+        input: result.ussdString,
         ...result,
       };
+      this.logger.debug(JSON.stringify(dataToSend));
       const sendResp = await ussdService.request(dataToSend);
       if (sendResp != null) {
         this.logger.info(sendResp);
@@ -88,10 +90,24 @@ export class MtnController implements IController {
         ignoreComment: true,
         ignoreAttributes: true,
       });
+      const jdata = JSON.parse(result);
+      // extract header information
+      const header = JSONPath({ path: "$..NotifySOAPHeader", json: jdata });
+      const headerInfo: any = {
+        spPassword: MtnSettings.spPassword,
+      };
+
+      if (Array.isArray(header)) {
+        header.forEach((hd: any) => {
+          Object.keys(hd).forEach((key) => {
+            headerInfo[key] = hd[key]._text;
+          });
+        });
+      }
       // check if the request is ussdReceiption or ussdAbort
       const notify = JSONPath({
         path: "$..notifyUssdReception",
-        json: JSON.parse(result),
+        json: jdata,
       });
 
       if (Array.isArray(notify) && notify.length > 0) {
@@ -99,6 +115,7 @@ export class MtnController implements IController {
         // process the ussdReceiptionRequest
         const inputData = this.extractShortCode(notdata.ussdString._text);
         return {
+          ...headerInfo,
           requestType: RequestType.notifyUssdReception,
           senderCB: notdata.senderCB._text,
           receiveCB: notdata.receiveCB._text,
@@ -147,7 +164,7 @@ export class MtnController implements IController {
     const splitStr = ussdstring.split("#");
     if (splitStr.length === 9) {
       return {
-        shortcode: splitStr[0],
+        shortcode: splitStr[0].replace(/\*/g, ""), //TODO check if there is more than one * in the shortcode
         imsi: splitStr[1],
         sender: splitStr[2],
         vlr: splitStr[3],

@@ -5,8 +5,6 @@ import { xml2json } from "xml-js";
 import { JSONPath } from "jsonpath-plus";
 import { MtnSettings } from "./settings";
 
-const logger = getLogger("MtnService");
-
 export enum RetValueStatus {
   Failed = 0,
   Success = 1,
@@ -24,6 +22,7 @@ export interface IRetValue extends IGenericObj {
 }
 
 export class MtnService {
+  private logger = getLogger("mtnService");
   async sendRequest(
     url: string,
     xmlBody: string,
@@ -38,12 +37,12 @@ export class MtnService {
     } else {
       headers.SOAPAction = "";
     }
-    logger.info(xmlBody);
+    this.logger.info(xmlBody);
 
     const httpsAgent = new https.Agent({
       rejectUnauthorized: false,
     });
-
+    this.logger.info(`Sending request to ${MtnSettings.baseUrl}${url}`);
     try {
       const response = await axios({
         headers,
@@ -56,28 +55,28 @@ export class MtnService {
         responseType: "document",
       });
 
-      logger.debug(
+      this.logger.debug(
         `Status=${response.status} (${response.statusText}), Data: ${response.data}`
       );
 
       // response received. convert it to object and return it
       const proResponse = this.processResponse(response.data);
       if (proResponse.status === RetValueStatus.Failed) {
-        logger.error(proResponse);
+        this.logger.error(proResponse);
       }
       return proResponse;
     } catch (err) {
       if (err.response && err.response.status) {
         // error contains response from axios call
-        logger.error(
+        this.logger.error(
           `RAW DATA: Status: ${err.response.status}(${err.response.statusText}), DATA: ${err.response.data} `
         );
         // log the process data
         const l = this.processResponse(err.response.data);
-        logger.error(l);
+        this.logger.error(l);
         return l;
       } else {
-        logger.error(err.message);
+        this.logger.error(err.message);
       }
     }
     return null;
@@ -116,7 +115,7 @@ export class MtnService {
         faultstring: "",
       };
     } catch (error) {
-      logger.error(error.message);
+      this.logger.error(error.message);
       return {
         status: RetValueStatus.Others,
         faultcode: "",

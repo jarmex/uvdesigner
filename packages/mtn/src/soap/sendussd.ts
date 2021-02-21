@@ -1,3 +1,4 @@
+import { MtnSettings } from "../settings";
 import { IStartUSSDSession } from "./startussd";
 
 export enum MessageType {
@@ -63,11 +64,12 @@ export const sendUSSDRequest = (req: ISendUSSD) => {
    <soapenv:Header>
       <tns:RequestSOAPHeader xmlns:tns="http://www.huawei.com.cn/schema/common/v2_1">
          <tns:spId>${req.spId}</tns:spId>
-         <tns:spPassword>${req.spPassword}</tns:spPassword>
+         <tns:spPassword>${MtnSettings.spPassword}</tns:spPassword>
          <tns:serviceId>${req.serviceId}</tns:serviceId>
-         <tns:timeStamp>${req.timeStamp}</tns:timeStamp>
+         <tns:timeStamp>${MtnSettings.timeStamp}</tns:timeStamp>
          <tns:OA>${req.OrigMSISDN}</tns:OA>
-         <tns:FA>${req.OrigMSISDN}</tns:FA> ${addTag}
+         <tns:FA>${req.OrigMSISDN}</tns:FA> 
+         ${addTag}
       </tns:RequestSOAPHeader>
    </soapenv:Header>
    <soapenv:Body>
